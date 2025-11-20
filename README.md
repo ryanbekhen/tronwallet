@@ -4,7 +4,7 @@
   <a href="README-id.md" style="margin-right:12px; text-decoration:none;">🇮🇩 Bahasa Indonesia</a>
   <strong>· English</strong>
   <br/>
-  <a href="https://codecov.io/gh/ryanbekhen/tronwallet"><img src="https://img.shields.io/codecov/c/github/ryanbekhen/tronwallet.svg?style=flat-square" alt="codecov"/></a>
+  <img src="coverage.svg" alt="coverage"/>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/ryanbekhen/tronwallet?style=flat-square" alt="license"/></a>
 </p>
 

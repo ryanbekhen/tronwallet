@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: write
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -13,6 +16,9 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        persist-credentials: true
 
     - name: Set up Go
       uses: actions/setup-go@v4
@@ -40,12 +46,6 @@ jobs:
         echo "Testing packages: $PKGS"
         go test -v -covermode=atomic -coverprofile=coverage.out $PKGS
 
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v4
-      with:
-        files: coverage.out
-        fail_ci_if_error: false
-
     - name: Check coverage threshold
       run: |
         set -euo pipefail
@@ -58,6 +58,29 @@ jobs:
         if [ "${PCT_INT}" -lt 80 ]; then
           echo "Coverage ${PCT}% is below threshold 80%" >&2
           exit 1
+        fi
+
+    - name: Generate and commit coverage badge
+      env:
+        GIT_COMMITTER_NAME: github-actions[bot]
+        GIT_COMMITTER_EMAIL: github-actions[bot]@users.noreply.github.com
+      run: |
+        set -euo pipefail
+        PCT=$(go tool cover -func=coverage.out | awk '/total:/ {print $3}' | sed 's/%//')
+        PCT_MSG="${PCT}%"
+        echo "Generating badge for coverage: $PCT_MSG"
+        # Use Shields static endpoint to render an SVG badge
+        BADGE_URL="https://img.shields.io/static/v1?label=coverage&message=$(echo $PCT_MSG | sed 's/ /%20/g')&color=brightgreen"
+        curl -s -L "$BADGE_URL" -o coverage.svg
+        # commit coverage.svg if changed
+        git add coverage.svg || true
+        if git diff --cached --quiet; then
+          echo "No changes in coverage.svg; skipping commit"
+        else
+          git config user.name "$GIT_COMMITTER_NAME"
+          git config user.email "$GIT_COMMITTER_EMAIL"
+          git commit -m "chore(ci): update coverage badge to $PCT_MSG"
+          git push origin HEAD:${GITHUB_REF_NAME}
         fi
 
     - name: Upload coverage report
