@@ -1,3 +1,9 @@
+<p align="right">🇬🇧 <a href="README.md">English</a> · <strong>Bahasa Indonesia</strong></p>
+
+<!-- Badges -->
+[![coverage](https://img.shields.io/github/actions/workflow/status/ryanbekhen/tronwallet/go-test.yml?branch=main&label=coverage&style=flat-square)](https://github.com/ryanbekhen/tronwallet/actions/workflows/go-test.yml)
+[![license](https://img.shields.io/github/license/ryanbekhen/tronwallet?style=flat-square)](LICENSE)
+
 # TronWallet
 
 TronWallet adalah pustaka Go ringan untuk membuat dan memulihkan dompet TRON (TRX) berbasis BIP39/BIP32/BIP44. Pustaka
