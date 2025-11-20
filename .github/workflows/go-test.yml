@@ -40,6 +40,12 @@ jobs:
         echo "Testing packages: $PKGS"
         go test -v -covermode=atomic -coverprofile=coverage.out $PKGS
 
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        files: coverage.out
+        fail_ci_if_error: false
+
     - name: Check coverage threshold
       run: |
         set -euo pipefail
@@ -60,4 +66,3 @@ jobs:
       with:
         name: coverage-report
         path: coverage.out
-

@@ -1,10 +1,12 @@
+# TronWallet
+
 <p align="right">🇮🇩 <a href="README-id.md">Bahasa Indonesia</a> · <strong>English</strong></p>
 
 <!-- Badges -->
-[![coverage](https://img.shields.io/github/actions/workflow/status/ryanbekhen/tronwallet/go-test.yml?branch=main&label=coverage&style=flat-square)](https://github.com/ryanbekhen/tronwallet/actions/workflows/go-test.yml)
+[![codecov](https://img.shields.io/codecov/c/github/ryanbekhen/tronwallet.svg?style=flat-square)](https://codecov.io/gh/ryanbekhen/tronwallet)
 [![license](https://img.shields.io/github/license/ryanbekhen/tronwallet?style=flat-square)](LICENSE)
 
-# TronWallet
+## Description
 
 TronWallet is a small Go library for creating and restoring TRON (TRX) wallets using BIP39/BIP32/BIP44. The library provides simple helpers to:
 
