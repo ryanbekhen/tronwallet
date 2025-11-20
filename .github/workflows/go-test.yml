@@ -60,7 +60,7 @@ jobs:
           exit 1
         fi
 
-    - name: Generate and commit coverage badge
+    - name: Publish coverage JSON to branch
       env:
         GIT_COMMITTER_NAME: github-actions[bot]
         GIT_COMMITTER_EMAIL: github-actions[bot]@users.noreply.github.com
@@ -68,20 +68,28 @@ jobs:
         set -euo pipefail
         PCT=$(go tool cover -func=coverage.out | awk '/total:/ {print $3}' | sed 's/%//')
         PCT_MSG="${PCT}%"
-        echo "Generating badge for coverage: $PCT_MSG"
-        # Use Shields static endpoint to render an SVG badge
-        BADGE_URL="https://img.shields.io/static/v1?label=coverage&message=$(echo $PCT_MSG | sed 's/ /%20/g')&color=brightgreen"
-        curl -s -L "$BADGE_URL" -o coverage.svg
-        # commit coverage.svg if changed
-        git add coverage.svg || true
-        if git diff --cached --quiet; then
-          echo "No changes in coverage.svg; skipping commit"
+        echo "Publishing coverage JSON for: $PCT_MSG"
+        mkdir -p .badges
+        printf '{"coverage": "%s"}' "$PCT_MSG" > .badges/coverage.json
+
+        git config user.name "$GIT_COMMITTER_NAME"
+        git config user.email "$GIT_COMMITTER_EMAIL"
+        # create or update branch coverage-badge with only the badges file
+        git fetch origin
+        if git show-ref --verify --quiet refs/heads/coverage-badge; then
+          git checkout coverage-badge
         else
-          git config user.name "$GIT_COMMITTER_NAME"
-          git config user.email "$GIT_COMMITTER_EMAIL"
-          git commit -m "chore(ci): update coverage badge to $PCT_MSG"
-          git push origin HEAD:${GITHUB_REF_NAME}
+          git checkout -b coverage-badge
         fi
+        git add .badges/coverage.json
+        if git diff --cached --quiet; then
+          echo "No changes to coverage.json"
+        else
+          git commit -m "chore(ci): update coverage json to $PCT_MSG"
+          git push -u origin coverage-badge
+        fi
+        # switch back to main
+        git checkout -
 
     - name: Upload coverage report
       if: success()
