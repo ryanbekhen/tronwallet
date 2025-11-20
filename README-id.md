@@ -4,7 +4,7 @@
   <a href="README.md" style="margin-right:12px; text-decoration:none;">🇬🇧 English</a>
   <strong>· Bahasa Indonesia</strong>
   <br/>
-  <img src="coverage.svg" alt="coverage"/>
+  <img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/ryanbekhen/tronwallet/coverage-badge/.badges/coverage.json" alt="coverage"/>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/ryanbekhen/tronwallet?style=flat-square" alt="license"/></a>
 </p>
 
