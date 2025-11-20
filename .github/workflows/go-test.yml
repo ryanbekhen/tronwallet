@@ -71,17 +71,18 @@ jobs:
         PCT_MSG="$PCT"
         echo "Publishing coverage JSON for: $PCT_MSG"
 
-        # write shields-compatible JSON endpoint schema in workspace
+        # create an orphan branch locally and push only the badge file
+        ORIG_BRANCH=$(git rev-parse --abbrev-ref HEAD || true)
+        # create orphan branch (no history) — workspace will be cleaned, so write JSON after this
+        git checkout --orphan coverage-badge || true
+        # remove tracked files from index (if any) and clean untracked files so branch is minimal
+        git rm -rf . >/dev/null 2>&1 || true
+        git clean -fdx >/dev/null 2>&1 || true
+
+        # recreate badges folder and write the JSON now (safe — not removed by clean)
         mkdir -p .badges
         printf '{"schemaVersion": 1, "label":"coverage", "message":"%s", "color":"brightgreen"}' "$PCT_MSG" > .badges/coverage.json
 
-        # create an orphan branch locally and push only the badge file
-        ORIG_BRANCH=$(git rev-parse --abbrev-ref HEAD || true)
-        git checkout --orphan coverage-badge || true
-        git rm -rf . >/dev/null 2>&1 || true
-        git clean -fdx >/dev/null 2>&1 || true
-        mkdir -p .badges
-        cp -f .badges/coverage.json .badges/coverage.json
         git add .badges/coverage.json
         git -c user.name="$GIT_COMMITTER_NAME" -c user.email="$GIT_COMMITTER_EMAIL" commit -m "chore(badge): coverage json $PCT_MSG" || true
 
