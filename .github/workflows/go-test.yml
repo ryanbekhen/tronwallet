@@ -66,30 +66,30 @@ jobs:
         GIT_COMMITTER_EMAIL: github-actions[bot]@users.noreply.github.com
       run: |
         set -euo pipefail
-        PCT=$(go tool cover -func=coverage.out | awk '/total:/ {print $3}' | sed 's/%//')
-        PCT_MSG="${PCT}%"
+        # compute coverage percent (e.g. 100.0%)
+        PCT=$(go tool cover -func=coverage.out | awk '/total:/ {print $3}')
+        PCT_MSG="$PCT"
         echo "Publishing coverage JSON for: $PCT_MSG"
-        mkdir -p .badges
-        printf '{"coverage": "%s"}' "$PCT_MSG" > .badges/coverage.json
 
-        git config user.name "$GIT_COMMITTER_NAME"
-        git config user.email "$GIT_COMMITTER_EMAIL"
-        # create or update branch coverage-badge with only the badges file
-        git fetch origin
-        if git show-ref --verify --quiet refs/heads/coverage-badge; then
-          git checkout coverage-badge
-        else
-          git checkout -b coverage-badge
-        fi
+        # write shields-compatible JSON endpoint schema in workspace
+        mkdir -p .badges
+        printf '{"schemaVersion": 1, "label":"coverage", "message":"%s", "color":"brightgreen"}' "$PCT_MSG" > .badges/coverage.json
+
+        # create an orphan branch locally and push only the badge file
+        ORIG_BRANCH=$(git rev-parse --abbrev-ref HEAD || true)
+        git checkout --orphan coverage-badge || true
+        git rm -rf . >/dev/null 2>&1 || true
+        git clean -fdx >/dev/null 2>&1 || true
+        mkdir -p .badges
+        cp -f .badges/coverage.json .badges/coverage.json
         git add .badges/coverage.json
-        if git diff --cached --quiet; then
-          echo "No changes to coverage.json"
-        else
-          git commit -m "chore(ci): update coverage json to $PCT_MSG"
-          git push -u origin coverage-badge
-        fi
-        # switch back to main
-        git checkout -
+        git -c user.name="$GIT_COMMITTER_NAME" -c user.email="$GIT_COMMITTER_EMAIL" commit -m "chore(badge): coverage json $PCT_MSG" || true
+
+        # push using the checkout's credentials (persist-credentials must be true)
+        git push --force origin HEAD:coverage-badge
+
+        # switch back to original branch
+        git checkout -f "$ORIG_BRANCH" || true
 
     - name: Upload coverage report
       if: success()
