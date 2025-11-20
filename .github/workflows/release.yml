@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          git fetch --prune --unshallow || true
+          git fetch --tags --force || true
+
+          CUR_TAG=${GITHUB_REF_NAME}
+          ROOT_COMMIT=$(git rev-list --max-parents=0 HEAD)
+          RANGE="$ROOT_COMMIT..HEAD"
+
+          echo "Generating changelog for range: $RANGE"
+
+          ALL_LOGS=$(git log $RANGE --pretty=format:'- %s')
+
+          FEATURES=$(echo "$ALL_LOGS" | grep -i '^feat:' || true)
+          FIXES=$(echo "$ALL_LOGS" | grep -i '^fix:' || true)
+          DOCS=$(echo "$ALL_LOGS" | grep -i '^docs:' || true)
+          CHORES=$(echo "$ALL_LOGS" | grep -i '^chore:' || true)
+          REFACTORS=$(echo "$ALL_LOGS" | grep -i '^refactor:' || true)
+          TESTS=$(echo "$ALL_LOGS" | grep -i '^test:' || true)
+          OTHER=$(echo "$ALL_LOGS" | grep -viE '^(feat|fix|docs|chore|refactor|test):' || true)
+
+          # write changelog
+          echo "## Changes in $CUR_TAG" > CHANGELOG.md
+          [ -n "$FEATURES" ] && echo -e "\n### Features\n$FEATURES" >> CHANGELOG.md
+          [ -n "$FIXES" ] && echo -e "\n### Bug Fixes\n$FIXES" >> CHANGELOG.md
+          [ -n "$DOCS" ] && echo -e "\n### Documentation\n$DOCS" >> CHANGELOG.md
+          [ -n "$CHORES" ] && echo -e "\n### Chores\n$CHORES" >> CHANGELOG.md
+          [ -n "$REFACTORS" ] && echo -e "\n### Refactors\n$REFACTORS" >> CHANGELOG.md
+          [ -n "$TESTS" ] && echo -e "\n### Tests\n$TESTS" >> CHANGELOG.md
+          [ -n "$OTHER" ] && echo -e "\n### Other\n$OTHER" >> CHANGELOG.md
+
+          echo "----- GENERATED CHANGELOG -----"
+          cat CHANGELOG.md
+          echo "-------------------------------"
+
+          echo "release_body<<EOF" >> $GITHUB_OUTPUT
+          cat CHANGELOG.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          body: ${{ steps.changelog.outputs.release_body }}
