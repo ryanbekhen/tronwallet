@@ -82,12 +82,12 @@ func (k *ExtKey) DeriveHardened(i uint32) (*ExtKey, error) {
 // Derive derives the i-th non-hardened child extended key from k using the
 // public key and the chain code as specified by BIP32.
 func (k *ExtKey) Derive(i uint32) (*ExtKey, error) {
-	privNum := new(secp256k1.ModNScalar)
-	if privNum.SetByteSlice(k.Key) {
+	parent := new(secp256k1.ModNScalar)
+	if parent.SetByteSlice(k.Key) {
 		return nil, errors.New("invalid private key")
 	}
 
-	pub := secp256k1.NewPrivateKey(privNum).PubKey().SerializeUncompressed()
+	pub := secp256k1.NewPrivateKey(parent).PubKey().SerializeCompressed()
 
 	buf := make([]byte, 4)
 	binary.BigEndian.PutUint32(buf, i)
@@ -103,7 +103,7 @@ func (k *ExtKey) Derive(i uint32) (*ExtKey, error) {
 	}
 
 	child := new(secp256k1.ModNScalar)
-	child.Set(privNum)
+	child.Set(parent)
 	child.Add(ilNum)
 
 	childArr := child.Bytes()
