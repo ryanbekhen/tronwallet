@@ -35,25 +35,104 @@ jobs:
 
           echo "Generating changelog for range: $RANGE"
 
-          ALL_LOGS=$(git log $RANGE --pretty=format:'- %s')
+          # We'll iterate commits and try to find a Conventional Commit line either in the subject
+          # or in the body (useful when merges contain the PR title in the body).
+          FEATURES=""
+          FIXES=""
+          DOCS=""
+          CHORES=""
+          REFACTORS=""
+          TESTS=""
+          CI=""
+          OTHER=""
 
-          FEATURES=$(echo "$ALL_LOGS" | grep -i '^feat:' || true)
-          FIXES=$(echo "$ALL_LOGS" | grep -i '^fix:' || true)
-          DOCS=$(echo "$ALL_LOGS" | grep -i '^docs:' || true)
-          CHORES=$(echo "$ALL_LOGS" | grep -i '^chore:' || true)
-          REFACTORS=$(echo "$ALL_LOGS" | grep -i '^refactor:' || true)
-          TESTS=$(echo "$ALL_LOGS" | grep -i '^test:' || true)
-          OTHER=$(echo "$ALL_LOGS" | grep -viE '^(feat|fix|docs|chore|refactor|test):' || true)
+          # Use ASCII record separators to safely split commits
+          git log $RANGE --pretty=format:'%H%x1f%s%x1f%b%x1e' | \
+          awk -v RS="\x1e" -v FS="\x1f" '{print $1 "\nSUBJECT:" $2 "\nBODY:" $3 "\n---"}' | \
+          while IFS= read -r line; do
+            # collect blocks: HASH, SUBJECT, BODY
+            if [[ "$line" =~ ^([0-9a-f]{7,})$ ]]; then
+              HASH="$line"
+              continue
+            fi
+            if [[ "$line" =~ ^SUBJECT:(.*)$ ]]; then
+              SUBJECT="${BASH_REMATCH[1]}"
+              continue
+            fi
+            if [[ "$line" =~ ^BODY:(.*)$ ]]; then
+              BODY="${BASH_REMATCH[1]}"
+              # Now process this commit: look for a Conventional Commit line in SUBJECT or BODY
+              # Prefer subject; if subject is a generic merge message, look into body
+              CLEAN_LINE=""
+              # Accept optional leading list markers like "- " or "* " before the type
+              if echo "$SUBJECT" | grep -iE '^\s*[-*]?\s*(feat|fix|docs|chore|refactor|test|ci)(\([^)]+\))?:' >/dev/null 2>&1; then
+                # strip any leading list marker and surrounding whitespace
+                CLEAN_LINE=$(echo "$SUBJECT" | sed -E 's/^\s*[-*]?\s*//')
+              else
+                # search body for a conventional-commit like line; allow leading list markers
+                CLEAN_LINE=$(echo "$BODY" | grep -iE '^\s*[-*]?\s*(feat|fix|docs|chore|refactor|test|ci)(\([^)]+\))?:' | head -n1 || true)
+                # strip marker if present
+                CLEAN_LINE=$(echo "$CLEAN_LINE" | sed -E 's/^\s*[-*]?\s*//')
+              fi
+
+              # If we found a matching line, categorize it; otherwise put the subject into Other
+              if [ -n "$CLEAN_LINE" ]; then
+                # normalize leading/trailing whitespace and ensure it starts with a dash
+                LINE="- $(echo "$CLEAN_LINE" | sed -E 's/^\s+//; s/\s+$//')"
+                case "$(echo "$CLEAN_LINE" | tr '[:upper:]' '[:lower:]')" in
+                  feat* ) FEATURES="$FEATURES\n$LINE" ;;
+                  fix* ) FIXES="$FIXES\n$LINE" ;;
+                  docs* ) DOCS="$DOCS\n$LINE" ;;
+                  chore* ) CHORES="$CHORES\n$LINE" ;;
+                  refactor* ) REFACTORS="$REFACTORS\n$LINE" ;;
+                  test* ) TESTS="$TESTS\n$LINE" ;;
+                  ci* ) CI="$CI\n$LINE" ;;
+                  * ) OTHER="$OTHER\n$LINE" ;;
+                esac
+              else
+                OTHER="$OTHER\n- $SUBJECT"
+              fi
+
+              # reset SUBJECT/BODY for next commit
+              SUBJECT=""
+              BODY=""
+            fi
+          done
 
           # write changelog
           echo "## Changes in $CUR_TAG" > CHANGELOG.md
-          [ -n "$FEATURES" ] && echo -e "\n### Features\n$FEATURES" >> CHANGELOG.md
-          [ -n "$FIXES" ] && echo -e "\n### Bug Fixes\n$FIXES" >> CHANGELOG.md
-          [ -n "$DOCS" ] && echo -e "\n### Documentation\n$DOCS" >> CHANGELOG.md
-          [ -n "$CHORES" ] && echo -e "\n### Chores\n$CHORES" >> CHANGELOG.md
-          [ -n "$REFACTORS" ] && echo -e "\n### Refactors\n$REFACTORS" >> CHANGELOG.md
-          [ -n "$TESTS" ] && echo -e "\n### Tests\n$TESTS" >> CHANGELOG.md
-          [ -n "$OTHER" ] && echo -e "\n### Other\n$OTHER" >> CHANGELOG.md
+          if [ -n "$(echo "$FEATURES" | tr -d '\n' | sed 's/ //g')" ]; then
+            echo -e "\n### Features" >> CHANGELOG.md
+            echo "$FEATURES" | sed '/^$/d' >> CHANGELOG.md
+          fi
+          if [ -n "$(echo "$FIXES" | tr -d '\n' | sed 's/ //g')" ]; then
+            echo -e "\n### Bug Fixes" >> CHANGELOG.md
+            echo "$FIXES" | sed '/^$/d' >> CHANGELOG.md
+          fi
+          if [ -n "$(echo "$DOCS" | tr -d '\n' | sed 's/ //g')" ]; then
+            echo -e "\n### Documentation" >> CHANGELOG.md
+            echo "$DOCS" | sed '/^$/d' >> CHANGELOG.md
+          fi
+          if [ -n "$(echo "$CHORES" | tr -d '\n' | sed 's/ //g')" ]; then
+            echo -e "\n### Chores" >> CHANGELOG.md
+            echo "$CHORES" | sed '/^$/d' >> CHANGELOG.md
+          fi
+          if [ -n "$(echo "$REFACTORS" | tr -d '\n' | sed 's/ //g')" ]; then
+            echo -e "\n### Refactors" >> CHANGELOG.md
+            echo "$REFACTORS" | sed '/^$/d' >> CHANGELOG.md
+          fi
+          if [ -n "$(echo "$TESTS" | tr -d '\n' | sed 's/ //g')" ]; then
+            echo -e "\n### Tests" >> CHANGELOG.md
+            echo "$TESTS" | sed '/^$/d' >> CHANGELOG.md
+          fi
+          if [ -n "$(echo "$CI" | tr -d '\n' | sed 's/ //g')" ]; then
+            echo -e "\n### CI" >> CHANGELOG.md
+            echo "$CI" | sed '/^$/d' >> CHANGELOG.md
+          fi
+          if [ -n "$(echo "$OTHER" | tr -d '\n' | sed 's/ //g')" ]; then
+            echo -e "\n### Other" >> CHANGELOG.md
+            echo "$OTHER" | sed '/^$/d' >> CHANGELOG.md
+          fi
 
           echo "----- GENERATED CHANGELOG -----"
           cat CHANGELOG.md
