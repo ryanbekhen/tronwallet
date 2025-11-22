@@ -29,6 +29,19 @@ jobs:
         run: |
           set -euo pipefail
 
+          # helper to append a line to a section variable using real newlines
+          append_section() {
+            # usage: append_section VARNAME LINE
+            local varname="$1"
+            local line="$2"
+            # if variable empty, set directly; else append with newline
+            if [ -z "${!varname-}" ]; then
+              printf -v "$varname" '%s' "$line"
+            else
+              printf -v "$varname" '%s\n%s' "${!varname}" "$line"
+            fi
+          }
+
           # determine current tag (support both GITHUB_REF and GITHUB_REF_NAME)
           if [ -n "${GITHUB_REF-}" ] && [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             CUR_TAG=${GITHUB_REF#refs/tags/}
@@ -77,17 +90,17 @@ jobs:
               type_lower=$(echo "$clean" | sed -E 's/^([A-Za-z]+).*/\1/' | tr '[:upper:]' '[:lower:]')
               line="- $clean"
               case "$type_lower" in
-                feat) FEATURES="$FEATURES\n$line" ;;
-                fix) FIXES="$FIXES\n$line" ;;
-                docs) DOCS="$DOCS\n$line" ;;
-                chore) CHORES="$CHORES\n$line" ;;
-                refactor) REFACTORS="$REFACTORS\n$line" ;;
-                test) TESTS="$TESTS\n$line" ;;
-                ci) CI="$CI\n$line" ;;
-                *) OTHER="$OTHER\n$line" ;;
+                feat) append_section FEATURES "$line" ;;
+                fix) append_section FIXES "$line" ;;
+                docs) append_section DOCS "$line" ;;
+                chore) append_section CHORES "$line" ;;
+                refactor) append_section REFACTORS "$line" ;;
+                test) append_section TESTS "$line" ;;
+                ci) append_section CI "$line" ;;
+                *) append_section OTHER "$line" ;;
               esac
             else
-              OTHER="$OTHER\n- $clean"
+              append_section OTHER "- $clean"
             fi
           done
 
